@@ -1,0 +1,239 @@
+# Receipt Auto Logger - Cursor Project Rules
+
+You are an expert in Google Apps Script (GAS), JavaScript, and building serverless web applications with Google Cloud services.
+
+## Project Context
+This is a receipt auto-logging system that uses:
+- Google Apps Script for backend logic
+- Google Cloud Vision API for OCR
+- Google Sheets for data storage
+- HTML/JavaScript for frontend testing interface
+
+## Key Constraints
+
+### Google Apps Script Limitations
+- Maximum execution time: 30 seconds
+- No Node.js modules, only GAS built-in libraries
+- No npm packages
+- No localStorage/sessionStorage in artifacts
+- HTTP requests only via UrlFetchApp
+- ES5 syntax only (no ES6+ features like arrow functions, const/let)
+
+### Available Libraries
+- Built-in: Utilities, SpreadsheetApp, DriveApp, UrlFetchApp, Logger
+- Via CDN: Papa Parse, SheetJS, lodash, d3, mathjs (in HTML artifacts only)
+
+### Vision API Constraints
+- Free tier: 1000 requests/month
+- Response time: 1-15 seconds depending on image size
+- Supported formats: JPG, PNG only (no HEIC)
+- Maximum image size: 10MB (recommend <2MB)
+
+## Code Style Guidelines
+
+### JavaScript/GAS Code
+- Use ES5 syntax: `var` instead of `const/let`, `function()` instead of `=>`
+- Function names: camelCase
+- Constants: UPPER_SNAKE_CASE
+- Always add JSDoc comments for functions
+- Keep functions under 50 lines
+- Use `debugLog()` instead of direct `Logger.log()` or `console.log()`
+
+### Error Handling Pattern
+```javascript
+function doPost(e) {
+  try {
+    // Validate input
+    if (!e || !e.postData) {
+      throw new Error('Invalid request data');
+    }
+    
+    // Business logic
+    var result = processRequest(e);
+    
+    // Return success
+    return createResponse({ success: true, result: result });
+    
+  } catch (error) {
+    debugLog('Error: ' + error.toString());
+    return createResponse({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+}
+```
+
+### Logging Pattern
+```javascript
+// Use both Logger and console for Cloud Logging visibility
+function debugLog(message, data) {
+  if (CONFIG.DEBUG_MODE) {
+    console.log('[DEBUG] ' + message);
+    Logger.log('[DEBUG] ' + message);
+    if (data) {
+      var dataStr = JSON.stringify(data, null, 2);
+      console.log(dataStr);
+      Logger.log(dataStr);
+    }
+  }
+}
+```
+
+## File Organization
+
+### gas/ - Backend Modules
+- `Code.gs`: Main entry point (doPost, doGet)
+- `Config.gs`: Configuration and constants
+- `VisionAPI.gs`: OCR integration
+- `Parser.gs`: Receipt parsing logic
+- `SheetWriter.gs`: Google Sheets operations
+
+### frontend/ - Testing Interface
+- `test.html`: Main test page
+- `config.js`: Frontend configuration
+- `utils.js`: Utility functions
+
+## Development Workflow
+
+### When Modifying Code
+1. Edit files in Cursor
+2. Copy to GAS editor (or use clasp)
+3. Save in GAS editor
+4. Deploy → Manage Deployments → Edit → New Version → Deploy
+5. Test with frontend/test.html
+
+### Testing Strategy
+1. Unit tests: Run GAS test functions (testFullFlow, testVisionAPI, testSheetWrite)
+2. Integration test: Use frontend/test.html with real images
+3. Check logs: https://script.google.com/home/executions
+
+## Common Tasks
+
+### Task: Improve OCR accuracy for Japanese receipts
+- File to modify: `gas/Parser.gs`
+- Functions: `extractAmount()`, `extractDate()`, `extractStore()`
+- Test with: Multiple receipt samples from different stores
+- Key considerations: Handle variations like "合計/", "合計金額", "計"
+
+### Task: Add new field extraction
+- Update `Parser.gs`: Add extraction function
+- Update `SheetWriter.gs`: Add to row builder
+- Update `Code.gs`: Include in response
+- Update frontend: Display new field
+
+### Task: Optimize performance
+- Profile execution time using: `var start = new Date().getTime()`
+- Check Vision API response time in logs
+- Optimize image size before sending to API
+- Consider caching OCR results
+
+## AI Assistant Guidelines
+
+### Good Prompts
+✅ "The extractAmount() function in Parser.gs fails to recognize amounts on lines containing '合計/'. Here's the current code: [paste code]. Please update it to handle this format."
+
+✅ "I'm getting 'Bad image data' error from Vision API. The image is JPG format, 2.5MB. Here's the callVisionAPI() function: [paste code]. What could be wrong?"
+
+### Bad Prompts
+❌ "Fix the bug"
+❌ "Make it work"
+❌ "Optimize everything"
+
+### When Asking for Code Review
+- Specify the file and function
+- List specific concerns (e.g., error handling, performance, security)
+- Provide context about expected vs actual behavior
+
+## Performance Targets
+
+- OCR processing: <10 seconds for typical receipt
+- Total execution time: <15 seconds end-to-end
+- Sheet write operation: <2 seconds
+- Frontend response time: <20 seconds total
+
+## Security Checklist
+
+- [ ] Never hardcode API keys in code
+- [ ] Use Script Properties for sensitive data: `PropertiesService.getScriptProperties().getProperty('API_KEY')`
+- [ ] Validate all user inputs (file type, size, format)
+- [ ] Sanitize data before writing to Sheet
+- [ ] Check token before processing requests
+- [ ] Don't expose internal error details to users
+
+## Common Issues & Solutions
+
+### Issue: Code changes not taking effect
+Solution: Must create new deployment version, not just save
+
+### Issue: No logs in Apps Script editor
+Solution: Check https://script.google.com/home/executions or use Google Cloud Logging
+
+### Issue: HEIC images fail
+Solution: Frontend should block HEIC and prompt user to convert to JPG
+
+### Issue: Amount parsing incorrect
+Solution: Review Parser.gs extractAmount() logic, check keyword priority and regex patterns
+
+### Issue: Request timeout
+Solution: Optimize image size, check Vision API response time, ensure execution <30s
+
+## Testing Checklist
+
+Before deploying:
+- [ ] Test with various receipt types (convenience store, restaurant, supermarket)
+- [ ] Test with different image qualities (clear, blurry, folded)
+- [ ] Test edge cases (very large/small amounts, missing data)
+- [ ] Verify Sheet write format matches expected columns
+- [ ] Check error handling for invalid inputs
+- [ ] Monitor API quota usage
+
+## Code Review Focus Areas
+
+When reviewing or writing code, pay attention to:
+1. **Error handling**: Every API call wrapped in try-catch
+2. **Input validation**: Check types, ranges, formats
+3. **Logging**: Sufficient debug info without overwhelming
+4. **Performance**: Minimize API calls, optimize loops
+5. **Readability**: Clear variable names, logical flow
+6. **Documentation**: JSDoc for all functions
+
+## Version Control
+
+### Commit Message Format
+```
+<type>: <subject>
+
+<body>
+
+<footer>
+```
+
+Types: feat, fix, docs, refactor, test, chore
+
+Example:
+```
+feat: add T-number extraction for invoice compliance
+
+- Added regex pattern to detect T-number format
+- Updated Parser.gs extractTNumber() function
+- Added test cases for various T-number formats
+
+Closes #12
+```
+
+## Next Development Priorities
+
+### Phase 2 (Current)
+- Improve amount parsing accuracy (handle "合計/" format) ✓
+- Add Review sheet for low-confidence results
+- Email notification for failed recognitions
+
+### Phase 3
+- Gemini AI integration for expense category classification
+- Multi-user support with OAuth
+- Monthly report generation
+
+---
+
+Remember: This is a Google Apps Script project with specific constraints. Always consider GAS execution limits and API quotas when suggesting solutions.
