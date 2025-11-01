@@ -1,1 +1,43 @@
-sync/*.md # 同步文件不提交
+# Sync files (临时工作内容)
+sync/for_claude.md
+sync/from_claude.md
+sync/research_links.md
+sync/chatgpt_findings.md
+
+# Environment
+.env
+.env.local
+config.local.js
+
+# API Keys
+**/api_keys.txt
+**/*_secret.json
+
+# OS files
+.DS_Store
+.AppleDouble
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.cursor/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Temp
+*.tmp
+*.backup
+*.swp
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Test images (保留示例)
+tests/test_receipt_samples/*.jpg
+tests/test_receipt_samples/*.png
+!tests/test_receipt_samples/sample_*.jpg
