@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parser 本地测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #ce9178;
+            margin: 30px 0 15px 0;
+        }
+        .test-case {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-case h3 {
+            color: #dcdcaa;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.pass { background: #16825d; color: white; }
+        .status.fail { background: #c72e0f; color: white; }
+        
+        .ocr-text {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-size: 13px;
+            color: #ce9178;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .result-item {
+            background: #1e1e1e;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #569cd6;
+        }
+        .result-item label {
+            color: #9cdcfe;
+            font-size: 12px;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .result-item .value {
+            color: #b5cea8;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .expected {
+            border-left-color: #4ec9b0 !important;
+        }
+        .actual.correct {
+            border-left-color: #16825d !important;
+        }
+        .actual.incorrect {
+            border-left-color: #c72e0f !important;
+        }
+        .debug-log {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #808080;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .debug-log div {
+            margin: 2px 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        .summary {
+            background: #252526;
+            border: 2px solid #4ec9b0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .summary h2 {
+            margin: 0 0 15px 0;
+        }
+        .summary .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            font-size: 18px;
+        }
+        .summary .stats span {
+            font-weight: bold;
+        }
+        .pass-count { color: #16825d; }
+        .fail-count { color: #c72e0f; }
+        .info-banner {
+            background: #2d2d30;
+            border-left: 4px solid #569cd6;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .info-banner p {
+            margin: 5px 0;
+            color: #9cdcfe;
+        }
+        .info-banner code {
+            background: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ce9178;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Parser.gs 本地测试工具</h1>
+        
+        <div class="info-banner">
+            <p>📁 <strong>逻辑文件位置：</strong><code>gas/parser-shared.js</code></p>
+            <p>🔄 <strong>更新方式：</strong>修改 parser-shared.js 后刷新页面即可</p>
+            <p>📋 <strong>同步到 GAS：</strong>将 parser-shared.js 的函数复制到 Parser.gs</p>
+        </div>
+        
+        <button onclick="runAllTests()">▶️ 运行所有测试</button>
+        
+        <div id="summary" style="display: none;"></div>
+        <div id="testResults"></div>
+    </div>
+
+    <!-- 🔥 引用共享的解析逻辑 -->
+    <script src="../gas/parser-shared.js"></script>
+
+    <script>
+        // ============================================
+        // 🐛 调试日志收集器
+        // ============================================
+        var debugLogs = [];
+        
+        function debugLog(message, data) {
+            var logEntry = message;
+            if (data !== undefined) {
+                logEntry += ' | ' + JSON.stringify(data);
+            }
+            debugLogs.push(logEntry);
+        }
+        
+        function clearDebugLogs() {
+            debugLogs = [];
+        }
+        
+        function getDebugLogs() {
+            return debugLogs.join('\n');
+        }
+
+        // ============================================
+        // 🧪 测试用例
+        // ============================================
+        var testCases = [
+            {
+                name: 'Big-A 收据 (合計和金额分离)',
+                ocrText: `Big-A
+Discount Foods
+商 収 武
+(本社お客様係)TEL 0120-118391
+(受付時間 月～金 10時～17時)
+梅田店
+登録番号
+T8040001031520
+2025年11月01日 (土)08:04 レジ1001
+貴No000000093羽島
+* 極早生みかん
+2コ X 単458
+¥916
+* きゅうり (袋)
+2コ X 単198
+¥396
+* パスコ超熟 6枚
+¥188
+* B P 成分無調整牛乳
+2コ X 単208
+¥416
+* 柿 (たねなし)
+2コ X 単98
+¥196
+* アボカド
+2コ X 単88
+¥176
+* スナックサンドピーナッツ
+2コ X 単118
+¥236
+小計
+¥2,524
+(8外税 対象
+¥2,524)
+8%外税
+¥201
+外消費税等
+¥201
+合計/ 13点
+¥2,725
+PayPay
+¥2,725
+お釣り
+¥0
+PayPay事業者(側)通番
+048344692966867599936
+*印は軽減税率(8%)適用商品です。
+レシートNo0996
+店No05916`,
+                expectedAmount: 2725
+            },
+            {
+                name: 'FamilyMart 收据 (合計和金额分离)',
+                ocrText: `— FamilyMart
+五反野駅店
+東京都足立区足立4丁目41-27
+電話 : 03-5888-4123
+登録番号: T5810282654343
+2025年10月31日 (金) 9:24
+レジ 2-7546
+責 No. 024
+||
+領収
+収証
+||
+IN
+Hおーいお茶ほうじ50
+合計
+(8% 対象
+(内消費税等
+PayPay支払
+¥149軽
+¥149
+¥149)
+¥11)
+¥149
+「軽」は軽減税率対象商品です。`,
+                expectedAmount: 149
+            },
+            {
+                name: '标准格式 (同行)',
+                ocrText: `セブンイレブン
+合計 ¥1,250`,
+                expectedAmount: 1250
+            },
+            {
+                name: '有逗号分隔',
+                ocrText: `ローソン
+合計 ¥2,750`,
+                expectedAmount: 2750
+            },
+            {
+                name: '使用円符号',
+                ocrText: `ファミマ
+合計 980円`,
+                expectedAmount: 980
+            }
+        ];
+
+        // ============================================
+        // 🎯 运行测试
+        // ============================================
+        function runAllTests() {
+            var resultsDiv = document.getElementById('testResults');
+            var summaryDiv = document.getElementById('summary');
+            resultsDiv.innerHTML = '';
+            
+            var passCount = 0;
+            var failCount = 0;
+            
+            for (var i = 0; i < testCases.length; i++) {
+                var testCase = testCases[i];
+                
+                // 清空日志
+                clearDebugLogs();
+                
+                // 执行测试
+                var lines = testCase.ocrText.split('\n').map(function(l) {
+                    return l.trim();
+                }).filter(function(l) {
+                    return l;
+                });
+                
+                var actualAmount = extractAmount(lines);
+                var passed = actualAmount === testCase.expectedAmount;
+                
+                if (passed) {
+                    passCount++;
+                } else {
+                    failCount++;
+                }
+                
+                // 渲染测试结果
+                var testDiv = document.createElement('div');
+                testDiv.className = 'test-case';
+                
+                testDiv.innerHTML = 
+                    '<h3>' +
+                    '<span>' + testCase.name + '</span>' +
+                    '<span class="status ' + (passed ? 'pass' : 'fail') + '">' +
+                    (passed ? '✅ PASS' : '❌ FAIL') +
+                    '</span>' +
+                    '</h3>' +
+                    '<div class="ocr-text">' + escapeHtml(testCase.ocrText) + '</div>' +
+                    '<div class="result">' +
+                    '<div class="result-item expected">' +
+                    '<label>Expected</label>' +
+                    '<div class="value">¥' + testCase.expectedAmount + '</div>' +
+                    '</div>' +
+                    '<div class="result-item actual ' + (passed ? 'correct' : 'incorrect') + '">' +
+                    '<label>Actual</label>' +
+                    '<div class="value">¥' + actualAmount + '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="debug-log">' +
+                    '<strong>Debug Log:</strong><br>' +
+                    getDebugLogs().split('\n').map(function(log) {
+                        return '<div>' + escapeHtml(log) + '</div>';
+                    }).join('') +
+                    '</div>';
+                
+                resultsDiv.appendChild(testDiv);
+            }
+            
+            // 显示总结
+            summaryDiv.style.display = 'block';
+            summaryDiv.innerHTML = 
+                '<h2>📊 测试总结</h2>' +
+                '<div class="stats">' +
+                '<div>总计: <span>' + testCases.length + '</span></div>' +
+                '<div>通过: <span class="pass-count">' + passCount + '</span></div>' +
+                '<div>失败: <span class="fail-count">' + failCount + '</span></div>' +
+                '<div>成功率: <span>' + Math.round(passCount / testCases.length * 100) + '%</span></div>' +
+                '</div>';
+        }
+        
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 页面加载时自动运行测试
+        window.onload = function() {
+            runAllTests();
+        };
+    </script>
+</body>
+</html>

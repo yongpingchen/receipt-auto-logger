@@ -38,8 +38,9 @@ receipt-auto-logger/
 │   ├── Code.gs              # 主入口 (doPost/doGet)
 │   ├── Config.gs            # 配置管理
 │   ├── VisionAPI.gs         # OCR 识别模块
-│   ├── Parser.gs            # 收据解析逻辑
 │   └── SheetWriter.gs       # Google Sheet 操作
+│   ├── parser-shared.js    ← 🔥 核心逻辑（单一来源）
+│   ├── Parser.gs           ← 从 parser-shared.js 复制
 │
 ├── frontend/                 # 前端测试界面
 │   └── test.html          # UI 结构（仅 UI）
@@ -63,6 +64,8 @@ receipt-auto-logger/
 ├── tests/                    # 测试
 │   ├── gas_tests.gs         # GAS 单元测试
 │   └── test_receipt_samples/ # 测试收据图片
+│   └── test-parser.html    ← 引用 ../gas/parser-shared.js
+│
 │
 └── sync/                     # 跨工具同步（不提交 Git）
     ├── for_claude.md        # 发送给 Claude 的内容
