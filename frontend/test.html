@@ -22,51 +22,25 @@
         
         <div class="input-group">
             <label>选择收据照片:</label>
-            <input type="file" id="imageFile" accept="image/jpeg,image/jpg,image/png" capture="environment">
+            <div class="button-group">
+                <button type="button" class="btn-secondary" onclick="ImageHandler.selectFromGallery()">📁 从相册选择</button>
+                <button type="button" class="btn-secondary" onclick="ImageHandler.takePhoto()">📸 拍照</button>
+            </div>
+            <input type="file" id="galleryFile" accept="image/jpeg,image/jpg,image/png" style="display: none;">
+            <input type="file" id="cameraFile" accept="image/jpeg,image/jpg,image/png" capture="environment" style="display: none;">
+            <div id="imagePreview"></div>
             <p class="hint">⚠️ 仅支持 JPG/PNG 格式（不支持 HEIC）</p>
         </div>
         
-        <button class="btn" onclick="uploadReceipt()">🚀 开始识别</button>
+        <button class="btn" onclick="UploadHandler.uploadReceipt()" id="uploadBtn" disabled>🚀 开始识别</button>
         
         <div id="result"></div>
     </div>
 
+    <!-- 模块化脚本加载 -->
     <script src="config.js"></script>
     <script src="utils.js"></script>
-    <script>
-        async function uploadReceipt() {
-            const apiUrl = document.getElementById('apiUrl').value;
-            const token = document.getElementById('token').value;
-            const fileInput = document.getElementById('imageFile');
-            const resultDiv = document.getElementById('result');
-            
-            if (!apiUrl) {
-                alert('请输入 Web App URL');
-                return;
-            }
-            if (!fileInput.files[0]) {
-                alert('请选择一张收据照片');
-                return;
-            }
-            
-            resultDiv.style.display = 'block';
-            resultDiv.className = '';
-            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在识别中...</p></div>';
-            
-            try {
-                const file = fileInput.files[0];
-                validateFile(file);
-                
-                const base64 = await fileToBase64(file);
-                const pureBase64 = base64.split(',')[1];
-                
-                const data = await sendRequest(apiUrl, token, pureBase64);
-                displayResult(resultDiv, data);
-                
-            } catch (error) {
-                displayError(resultDiv, error);
-            }
-        }
-    </script>
+    <script src="image-handler.js"></script>
+    <script src="upload-handler.js"></script>
 </body>
 </html>

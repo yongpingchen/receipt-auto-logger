@@ -42,9 +42,12 @@ receipt-auto-logger/
 │   └── SheetWriter.gs       # Google Sheet 操作
 │
 ├── frontend/                 # 前端测试界面
-│   ├── test.html            # 手机测试页面
-│   ├── config.js            # 前端配置
-│   └── utils.js             # 工具函数
+│   └── test.html          # UI 结构（仅 UI）
+│   ├── styles.css         # 样式表
+│   ├── config.js          # 配置常量
+│   ├── utils.js           # 通用工具函数
+│   ├── image-handler.js   # 图片处理 ⭐ 拍照/相册
+│   └── upload-handler.js  # 上传流程 ⭐ 识别流程
 │
 ├── docs/                     # 项目文档
 │   ├── setup.md             # 环境配置指南
