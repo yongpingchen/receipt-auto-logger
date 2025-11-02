@@ -60,7 +60,7 @@ function sendRequest(apiUrl, token, base64Image) {
         }, APP_CONFIG.REQUEST_TIMEOUT);
         
         xhr.open('POST', apiUrl, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');  // ✅ 使用 text/plain 避免预检
         
         xhr.onload = function() {
             clearTimeout(timeoutId);
