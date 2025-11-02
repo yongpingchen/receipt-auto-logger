@@ -10,21 +10,13 @@
 function parseReceipt(text) {
   debugLog('开始解析收据文本');
   
-  var lines = text.split('\n');
-  var cleanLines = [];
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    if (line) {
-      cleanLines.push(line);
-    }
-  }
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  debugLog('文本行数: ' + lines.length);
   
-  debugLog('文本行数: ' + cleanLines.length);
-  
-  var result = {
-    date: extractDate(cleanLines),
-    amount: extractAmount(cleanLines),
-    store: extractStore(cleanLines),
+  const result = {
+    date: extractDate(lines),
+    amount: extractAmount(lines),
+    store: extractStore(lines),
     taxRate: extractTaxRate(text),
     hasTNumber: extractTNumber(text),
     confidence: 0
@@ -41,85 +33,154 @@ function parseReceipt(text) {
  * 提取日期
  */
 function extractDate(lines) {
-  var patterns = [
+  const patterns = [
     /(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/,
-    /(\d{4})\.(\d{2})\.(\d{2})/
+    /令和(\d+)年(\d{1,2})月(\d{1,2})日/,
+    /(\d{4})\.(\d{2})\.(\d{2})/,
+    /(\d{2})\/(\d{2})\/(\d{4})/  // MM/DD/YYYY
   ];
   
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    for (var j = 0; j < patterns.length; j++) {
-      var match = line.match(patterns[j]);
+  for (const line of lines) {
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
       if (match) {
-        var year = match[1];
-        var month = match[2].length === 1 ? '0' + match[2] : match[2];
-        var day = match[3].length === 1 ? '0' + match[3] : match[3];
-        return year + '-' + month + '-' + day;
+        if (line.includes('令和')) {
+          // 令和年号转西历
+          const reiwaYear = parseInt(match[1]) + 2018;
+          return `${reiwaYear}-${pad(match[2])}-${pad(match[3])}`;
+        } else if (match[4]) {
+          // MM/DD/YYYY 格式
+          return `${match[3]}-${pad(match[1])}-${pad(match[2])}`;
+        } else {
+          return `${match[1]}-${pad(match[2])}-${pad(match[3])}`;
+        }
       }
     }
   }
   
   // 默认返回今天
-  var today = new Date();
-  var year = today.getFullYear();
-  var month = String(today.getMonth() + 1).padStart(2, '0');
-  var day = String(today.getDate()).padStart(2, '0');
-  return year + '-' + month + '-' + day;
+  const today = new Date();
+  return Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy-MM-dd');
 }
 
 /**
- * 提取金额（从后往前搜索）
+ * 提取金额
  */
 function extractAmount(lines) {
-  var keywords = ['合計/', '合計', '総計', 'お会計', '計', 'total'];
+  // 关键词优先级（按重要性排序）
+  const highPriorityKeywords = ['合計/', '合計', '総計'];
+  const mediumPriorityKeywords = ['お会計', '計', 'total', 'Total'];
+  const lowPriorityKeywords = ['小計', '小计'];
   
-  // 从后往前搜索
-  for (var i = lines.length - 1; i >= 0; i--) {
-    var line = lines[i];
-    
-    for (var j = 0; j < keywords.length; j++) {
-      if (line.indexOf(keywords[j]) !== -1) {
-        var nums = line.match(/[\d,，]+/g);
-        if (nums) {
-          var lastNum = nums[nums.length - 1];
-          var amount = parseInt(lastNum.replace(/[,，]/g, ''));
-          if (amount > 0 && amount < 1000000) {
-            debugLog('在"' + keywords[j] + '"行找到金额: ' + amount);
-            return amount;
-          }
+  let bestAmount = 0;
+  let bestPriority = 0;
+  
+  // 先找高优先级关键词
+  for (const keyword of highPriorityKeywords) {
+    for (let i = lines.length - 1; i >= 0; i--) {  // 🔥 从后往前找
+      const line = lines[i];
+      if (line.includes(keyword)) {
+        const amount = extractNumberFromLine(line);
+        if (amount > 0 && amount < 1000000) {
+          debugLog(`在"${keyword}"行找到金额: ${amount} (行: ${line})`);
+          return amount;  // 立即返回
         }
       }
     }
+  }
+  
+  // 找中等优先级
+  for (const keyword of mediumPriorityKeywords) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (line.includes(keyword)) {
+        const amount = extractNumberFromLine(line);
+        if (amount > 0 && amount < 1000000) {
+          debugLog(`在"${keyword}"行找到金额: ${amount} (行: ${line})`);
+          return amount;
+        }
+      }
+    }
+  }
+  
+  // 最后找小计
+  for (const keyword of lowPriorityKeywords) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (line.includes(keyword)) {
+        const amount = extractNumberFromLine(line);
+        if (amount > 0 && amount < 1000000) {
+          debugLog(`在"${keyword}"行找到金额: ${amount} (行: ${line})`);
+          return amount;
+        }
+      }
+    }
+  }
+  
+  // 备选：找包含"円"且金额较大的行
+  let maxAmount = 0;
+  for (const line of lines) {
+    if (line.includes('円') || line.includes('¥') || line.includes('￥')) {
+      const amount = extractNumberFromLine(line);
+      if (amount > maxAmount && amount < 1000000) {
+        maxAmount = amount;
+      }
+    }
+  }
+  
+  if (maxAmount > 0) {
+    debugLog(`通过"円"标记找到最大金额: ${maxAmount}`);
+    return maxAmount;
   }
   
   return 0;
 }
 
 /**
+ * 从行中提取数字（处理各种格式）
+ */
+function extractNumberFromLine(line) {
+  // 移除空格和全角字符
+  const cleanLine = line.replace(/\s+/g, '').replace(/[￥¥円]/g, '');
+  
+  // 查找所有数字（包括逗号分隔）
+  const nums = cleanLine.match(/[\d,，]+/g);
+  if (!nums) return 0;
+  
+  // 取最后一个数字（通常是金额）
+  const lastNum = nums[nums.length - 1];
+  const amount = parseInt(lastNum.replace(/[,，]/g, ''));
+  
+  return isNaN(amount) ? 0 : amount;
+}
+
+/**
  * 提取店名
  */
 function extractStore(lines) {
-  var excludeKeywords = [
+  const excludeKeywords = [
     '領収書', '領収証', 'レシート', 'RECEIPT',
-    'TEL', 'Tel', '電話', '住所', 'Address'
+    'TEL', 'Tel', '電話', '住所', 'Address',
+    'FAX', 'Fax', '営業時間', '登録番号'
   ];
   
-  for (var i = 0; i < Math.min(5, lines.length); i++) {
-    var line = lines[i];
+  // 在前 5 行中查找
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const line = lines[i];
     
-    // 过滤关键词
-    var hasExcluded = false;
-    for (var j = 0; j < excludeKeywords.length; j++) {
-      if (line.indexOf(excludeKeywords[j]) !== -1) {
-        hasExcluded = true;
-        break;
-      }
+    // 过滤掉关键词
+    if (excludeKeywords.some(kw => line.includes(kw))) {
+      continue;
     }
-    if (hasExcluded) continue;
     
-    // 长度合理
+    // 过滤掉纯数字行
+    if (/^\d+$/.test(line)) {
+      continue;
+    }
+    
+    // 长度合理的行
     if (line.length >= 3 && line.length <= 30) {
-      debugLog('找到店名: ' + line);
+      debugLog(`找到店名: ${line}`);
       return line;
     }
   }
@@ -134,14 +195,14 @@ function extractTaxRate(text) {
   if (text.match(/軽減税率|8%対象|8％|税率8/)) {
     return '8%';
   }
-  return '10%';
+  return '10%';  // 默认标准税率
 }
 
 /**
  * 提取 T 番号
  */
 function extractTNumber(text) {
-  var match = text.match(/T\d{13}/);
+  const match = text.match(/T\d{13}/);
   return match ? '有' : '無';
 }
 
@@ -149,22 +210,20 @@ function extractTNumber(text) {
  * 计算置信度
  */
 function calculateConfidence(result) {
-  var today = new Date();
-  var todayStr = today.getFullYear() + '-' + 
-                 String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                 String(today.getDate()).padStart(2, '0');
-  
-  var checks = [
-    result.date !== todayStr,
+  const checks = [
+    result.date !== Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd'),  // 日期非今天
     result.amount > 0,
     result.store !== '不明',
     result.hasTNumber === '有'
   ];
   
-  var score = 0;
-  for (var i = 0; i < checks.length; i++) {
-    if (checks[i]) score++;
-  }
-  
+  const score = checks.filter(Boolean).length;
   return Math.round((score / checks.length) * 100);
+}
+
+/**
+ * 辅助函数：补零
+ */
+function pad(num) {
+  return String(num).padStart(2, '0');
 }

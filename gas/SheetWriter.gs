@@ -12,10 +12,9 @@ function writeToSheet(date, ocrText, confidence) {
   debugLog('开始写入 Sheet');
   
   try {
-    var sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getActiveSheet();
-    
+    const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getActiveSheet();
     // 确定状态
-    var status = getStatus(confidence);
+    const status = getStatus(confidence);
     
     // 写入数据
     sheet.appendRow([
@@ -37,11 +36,11 @@ function writeToSheet(date, ocrText, confidence) {
  */
 function getStatus(confidence) {
   if (confidence >= CONFIG.CONFIDENCE_THRESHOLD.HIGH) {
-    return '✅ 识别成功 (' + confidence + '%)';
+    return `✅ 识别成功 (${confidence}%)`;
   } else if (confidence >= CONFIG.CONFIDENCE_THRESHOLD.MEDIUM) {
-    return '⚠️ 需复核 (' + confidence + '%)';
+    return `⚠️ 需复核 (${confidence}%)`;
   } else {
-    return '❌ 识别失败 (' + confidence + '%)';
+    return `❌ 识别失败 (${confidence}%)`;
   }
 }
 
@@ -52,9 +51,9 @@ function testSheetWrite() {
   try {
     Logger.log('🧪 开始测试 Sheet 写入...');
     
-    var testDate = new Date().toLocaleDateString('ja-JP');
-    var testText = 'これはテストデータです\nTest Data';
-    var testConfidence = 85;
+    const testDate = new Date().toLocaleDateString('ja-JP');
+    const testText = 'これはテストデータです\nTest Data';
+    const testConfidence = 85;
     
     writeToSheet(testDate, testText, testConfidence);
     
