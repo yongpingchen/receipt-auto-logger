@@ -8,10 +8,7 @@
 
 **收据自动识别系统** - 手机拍照识别日文收据，自动提取信息并记录到 Google Sheet
 
-**技术栈**:
-- 后端: Google Apps Script (ES5 语法)
-- OCR: Google Cloud Vision API
-- 前端: HTML/CSS/JS (模块化)
+**技术栈**: Google Apps Script (ES5) + Google Cloud Vision API + HTML/CSS/JS (模块化)
 
 ---
 
@@ -27,27 +24,32 @@
 │   └── SheetWriter.gs     # Sheet 操作
 │
 └── frontend/               # 前端（模块化）
-    ├── test.html          # UI 结构（仅 UI）
+    ├── index.html         # UI 结构 ⭐ v1.2: 双页面
     ├── styles.css         # 样式表
     ├── config.js          # 配置常量
     ├── utils.js           # 通用工具函数
-    ├── image-handler.js   # 图片处理 ⭐ 拍照/相册
-    └── upload-handler.js  # 上传流程 ⭐ 识别流程
+    ├── image-handler.js   # 图片处理
+    ├── page-switcher.js   # ✨ v1.2: 页面切换
+    ├── confirm-handler.js # ✨ v1.2: 确认页逻辑
+    └── upload-handler.js  # 上传流程
 ```
 
 ---
 
 ## 🔍 快速定位指南
 
-### 用户说...                     → 修改文件
-- "改进金额识别"                  → `gas/Parser.gs`
-- "修改 OCR 调用"                 → `gas/VisionAPI.gs`
-- "改变 Sheet 写入格式"           → `gas/SheetWriter.gs`
-- "修改拍照/相册功能"             → `frontend/image-handler.js`
-- "改进上传流程"                  → `frontend/upload-handler.js`
-- "添加工具函数"                  → `frontend/utils.js`
-- "修改 UI 样式"                  → `frontend/test.html` + `styles.css`
-- "修改配置项"                    → `gas/Config.gs` 或 `frontend/config.js`
+| 用户需求 | 修改文件 |
+|---------|---------|
+| 改进金额识别 | `gas/Parser.gs` |
+| 修改 OCR 调用 | `gas/VisionAPI.gs` |
+| 改变 Sheet 写入格式 | `gas/SheetWriter.gs` |
+| 修改拍照/相册功能 | `frontend/image-handler.js` |
+| 修改确认页面布局 | `frontend/index.html` |
+| 修改确认页面交互 | `frontend/confirm-handler.js` |
+| 修改页面切换 | `frontend/page-switcher.js` |
+| 修改提交逻辑 | `frontend/confirm-handler.js` + `gas/Code.gs` |
+| 添加工具函数 | `frontend/utils.js` |
+| 修改 UI 样式 | `frontend/styles.css` |
 
 ---
 
@@ -55,28 +57,30 @@
 
 ### 后端 (GAS)
 
-| 文件 | 职责 | 常见任务 |
-|------|------|----------|
-| Code.gs | 主入口、路由 | 修改 API 接口、错误处理 |
-| Parser.gs | 收据解析逻辑 | 改进识别规则、提取算法 |
-| VisionAPI.gs | OCR 调用 | 修改 API 参数、错误处理 |
-| SheetWriter.gs | Sheet 操作 | 修改写入格式、添加列 |
-| Config.gs | 配置管理 | 修改阈值、开关 |
+| 文件 | 职责 |
+|------|------|
+| Code.gs | 主入口、路由 (action 参数) |
+| Parser.gs | 收据解析逻辑 |
+| VisionAPI.gs | OCR 调用 |
+| SheetWriter.gs | Sheet 操作 |
+| Config.gs | 配置管理 |
 
 ### 前端 (Modular JS)
 
-| 文件 | 职责 | 导出命名空间 |
-|------|------|------------|
-| image-handler.js | 拍照、相册、预览、保存 | `ImageHandler` |
-| upload-handler.js | 上传流程控制 | `UploadHandler` |
-| utils.js | 通用工具函数 | 全局函数 |
-| config.js | 前端配置 | `APP_CONFIG` |
+| 文件 | 命名空间 | 职责 |
+|------|---------|------|
+| image-handler.js | `ImageHandler` | 拍照、相册、预览 |
+| page-switcher.js | `PageSwitcher` | 页面切换 ✨ v1.2 |
+| confirm-handler.js | `ConfirmHandler` | 确认页逻辑 ✨ v1.2 |
+| upload-handler.js | `UploadHandler` | 上传流程 |
+| utils.js | 全局函数 | 工具函数 |
+| config.js | `APP_CONFIG` | 前端配置 |
 
 ---
 
 ## 🚨 关键约束（必须遵守）
 
-### 1. ES5 语法（GAS 和前端都是）
+### 1. ES5 语法
 ```javascript
 // ❌ 禁止
 const x = 1;
@@ -88,10 +92,10 @@ arr.find(x => x > 1);
 var x = 1;
 var y = 2;
 function fn() {}
-// 使用 for 循环替代 find
+for (var i = 0; i < arr.length; i++) { ... }
 ```
 
-### 2. 模块化规范（前端）
+### 2. 模块化规范
 - 使用 **IIFE + 命名空间模式**
 - 私有变量/函数放在闭包内
 - 只暴露必要的公开接口
@@ -106,135 +110,55 @@ function fn() {}
 
 ## 💡 在新对话中的使用方法
 
----
-
-## 🪙 Token 优化规则（重要）
-
-> **目标**: 在保持清晰的前提下，最小化 Token 消耗
-
-### 代码回复最小化原则
-
-Claude 在回复代码修改时，遵循 **"最小必要改动"** 原则：
-
-#### 📏 回复粒度
-
-| 修改范围 | 回复内容 | Token 消耗 |
-|---------|---------|-----------|
-| 1-2 行代码 | 只给修改的行 + 2 行上下文 | ~50 tokens ⭐⭐⭐⭐⭐ |
-| 单个函数 | 只给该函数的完整代码 | ~200 tokens ⭐⭐⭐⭐ |
-| 多个函数 | 逐个列出，带文件名和行号 | ~500 tokens ⭐⭐⭐ |
-| 整个文件 | 给出完整文件（仅当必要） | ~1000+ tokens ⭐⭐ |
-
-#### 📋 标准回复格式
-```
-📍 文件：frontend/utils.js
-🔧 修改：第 44 行
-
-找到：
-  xhr.setRequestHeader('Content-Type', 'application/json');
-
-替换为：
-  xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
-
-💡 说明：避免 CORS 预检请求
-```
-
-#### 🎯 何时给完整代码
-
-**只有以下情况才给完整文件：**
-- 用户明确要求："给我完整的 X 文件"
-- 创建新文件
-- 重构整个模块
-- 修改超过 5 处且分散
-
-#### ✅ 用户反馈
-
-如果 Claude 回复太长，用户可以说：
-- "只要改动部分"
-- "只要 diff"
-- "太长了"
-
----
-
 ### 场景 1: 修改某个模块
-
-**你只需提供**:
-1. 本文档 (CONTEXT.md)
-2. 要修改的模块代码 (如 `upload-handler.js`)
-3. 你的需求描述
-
-**示例**:
 ```
-[粘贴 CONTEXT.md]
-[粘贴 upload-handler.js 代码]
+[粘贴 context.md]
+[粘贴要修改的模块代码]
 
-需求: 在上传前添加图片压缩功能
+需求: [描述需求]
 ```
 
 ### 场景 2: 跨模块修改
-
-**你需提供**:
-1. 本文档 (CONTEXT.md)
-2. 相关的多个模块代码
-3. 你的需求描述
-
-**示例**:
 ```
-[粘贴 CONTEXT.md]
-[粘贴 utils.js]
-[粘贴 upload-handler.js]
+[粘贴 context.md]
+[粘贴多个相关模块代码]
 
-需求: 添加图片压缩，并在上传前应用
+需求: [描述需求]
 ```
 
-### 场景 3: 添加新功能
-
-**你需提供**:
-1. 本文档 (CONTEXT.md)
-2. 可能涉及的模块代码
-3. 功能描述
-
-**示例**:
+### 场景 3: 修改确认页面
 ```
-[粘贴 CONTEXT.md]
-[粘贴 image-handler.js]
+[粘贴 context.md]
+[粘贴 confirm-handler.js]
+[粘贴 page-switcher.js]
 
-需求: 添加图片裁剪功能
+需求: [描述需求]
 ```
 
 ---
 
 ## 🎯 关键设计模式
 
-### 前端命名空间模式
+### 命名空间模式
 ```javascript
-var ImageHandler = (function() {
-    // 私有变量
+var ModuleName = (function() {
     var privateVar = null;
     
-    // 私有函数
     function privateFunc() {}
     
-    // 公开接口
     return {
-        publicMethod1: function() {},
-        publicMethod2: function() {}
+        publicMethod: function() {}
     };
 })();
 ```
 
-### 后端错误处理模式
+### 跨模块通信
 ```javascript
-function someFunction() {
-    try {
-        debugLog('开始处理');
-        // 业务逻辑
-        debugLog('处理完成');
-    } catch (error) {
-        debugLog('❌ 错误: ' + error.toString());
-        throw error;
-    }
-}
+// upload-handler.js
+PageSwitcher.showConfirmPage(data.result, data.ocrText);
+
+// page-switcher.js
+ConfirmHandler.renderData(data, ocrText);
 ```
 
 ---
@@ -244,42 +168,66 @@ function someFunction() {
 ### Q: 为什么不用 ES6?
 A: Google Apps Script 只支持 ES5
 
-### Q: 前端为什么用命名空间?
-A: 避免全局变量污染，模块间职责清晰
-
-### Q: 如何测试某个模块?
-A: 在浏览器控制台直接调用命名空间方法
+### Q: 如何测试模块?
 ```javascript
+// 浏览器控制台
 ImageHandler.selectFromGallery();
-UploadHandler.uploadReceipt();
+PageSwitcher.showConfirmPage(testData, 'OCR文本');
 ```
 
-### Q: 修改某个功能需要看几个文件?
-A: 通常只需要 1-2 个文件（这就是模块化的优势）
+### Q: 识别后没跳转到确认页?
+A: 检查：
+1. `upload-handler.js` 是否调用 `PageSwitcher.showConfirmPage()`
+2. 脚本加载顺序是否正确
+3. 浏览器控制台是否有错误
+
+### Q: 确认页表单无法填充?
+A: 检查：
+1. `confirm-handler.js` 是否加载
+2. 表单字段 ID 是否匹配
+3. 后端返回数据是否包含 `ocrText`
+
+### Q: 提交到 Sheet 失败?
+A: 检查：
+1. 后端 `Code.gs` 是否支持 `action: 'submit'`
+2. Sheet 表头是否更新（需包含：金额、店名、税率、T番号）
 
 ---
 
 ## 🔧 快速调试
 
-### 前端调试
+### 前端
 ```javascript
-// 浏览器控制台
-console.log(ImageHandler.getCurrentFile());
-console.log(APP_CONFIG);
+// 检查模块加载
+console.log(typeof PageSwitcher);    // "object"
+console.log(typeof ConfirmHandler);  // "object"
+
+// 测试页面切换
+PageSwitcher.showConfirmPage({
+    date: '2025-11-02',
+    amount: 1250,
+    store: 'テスト店',
+    taxRate: '10%',
+    hasTNumber: '有',
+    confidence: '85%'
+}, 'OCR原文测试');
+
+// 检查当前页面
+console.log(PageSwitcher.getCurrentPage());
 ```
 
-### 后端调试
+### 后端
 ```javascript
 // GAS 编辑器
 Logger.log(CONFIG.DEBUG_MODE);
-testFullFlow();  // 运行测试函数
+testFullFlow();
 ```
 
 ---
 
 ## 📌 重要提示
 
-1. **始终检查 ES5 合规性**: 不要使用任何 ES6+ 特性
+1. **ES5 合规性**: 不使用任何 ES6+ 特性
 2. **模块职责单一**: 一个文件只做一件事
 3. **函数简短**: < 50 行，超过就拆分
 4. **注释完整**: 每个函数必须有 JSDoc
@@ -288,73 +236,30 @@ testFullFlow();  // 运行测试函数
 
 ## 🚀 开始使用
 
-在新对话中，直接说：
-
+**基本用法**:
 ```
 我要修改 [功能名称]
 
-[粘贴本 CONTEXT.md]
+[粘贴本 context.md]
 [粘贴相关模块代码]
 
-具体需求: [描述你的需求]
+具体需求: [描述需求]
 ```
 
-Claude 会根据上下文，只返回需要修改的模块代码，节省 Token！
+**v1.2 新增模块提示**:
+- 修改确认页 → 粘贴 `confirm-handler.js` + `page-switcher.js`
+- 修改页面切换 → 粘贴 `page-switcher.js`
+- 修改提交逻辑 → 粘贴 `confirm-handler.js` + `Code.gs`
 
 ---
 
-## 🧪 本地测试方法
+## 🔗 相关文档
 
-### 文件结构
-```
-项目/
-├── gas/
-│   ├── parser-shared.js    # 🔥 核心解析逻辑（单一来源）
-│   └── Parser.gs           # 从 parser-shared.js 复制
-│
-└── tests/
-    └── test-parser.html    # 测试页面（引用 parser-shared.js）
-```
+- [工作流程详解](workflow.md) - 完整流程图和版本对比
+- [项目 README](../README.md) - 项目概述和配置指南
 
-### 工作流程
+---
 
-**1. 修改逻辑**
-```bash
-编辑 gas/parser-shared.js
-```
-
-**2. 本地测试**
-```bash
-# 双击打开（或拖入浏览器）
-tests/test-parser.html
-
-# 刷新页面即可看到新结果
-```
-
-**3. 同步到 GAS**
-```bash
-# 测试通过后，复制函数到 Parser.gs
-复制 parser-shared.js 的函数 → gas/Parser.gs
-```
-
-### 添加测试用例
-
-在 `test-parser.html` 的 `testCases` 数组中添加：
-```javascript
-{
-    name: '测试名称',
-    ocrText: `粘贴 OCR 原文（保留换行）`,
-    expectedAmount: 期望金额数字
-}
-```
-
-### 优势
-
-- ✅ **快速迭代**：修改后刷新浏览器即可，无需部署
-- ✅ **单一来源**：逻辑只在 `parser-shared.js` 维护
-- ✅ **详细日志**：每个测试显示完整 debugLog
-- ✅ **可视化对比**：Expected vs Actual 一目了然
-
-**最后更新**: 2025-11-02
-**项目版本**: v1.1
+**最后更新**: 2025-11-02  
+**项目版本**: v1.2  
 **维护者**: @chenyongping
