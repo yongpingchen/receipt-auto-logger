@@ -37,7 +37,11 @@ var UploadHandler = (function() {
                 return sendRequest(apiUrl, token, pureBase64);
             })
             .then(function(data) {
-                displayResult(resultDiv, data);
+                if (data.success) {
+                    PageSwitcher.showConfirmPage(data.result, data.ocrText);  // ✅ 跳转
+                } else {
+                    displayError(resultDiv, new Error(data.error));
+                }
             })
             .catch(function(error) {
                 displayError(resultDiv, error);
