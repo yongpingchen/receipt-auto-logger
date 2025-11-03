@@ -7,7 +7,10 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <!-- ========================================== -->
+    <!-- 📤 上传页面 -->
+    <!-- ========================================== -->
+    <div id="uploadPage" class="container">
         <h1>📸 收据识别测试</h1>
         
         <div class="input-group">
@@ -37,10 +40,72 @@
         <div id="result"></div>
     </div>
 
-    <!-- 模块化脚本加载 -->
+    <!-- ========================================== -->
+    <!-- ✅ 确认页面 -->
+    <!-- ========================================== -->
+    <div id="confirmPage" class="container" style="display: none;">
+        <h1>✅ 识别结果确认</h1>
+        
+        <form id="confirmForm" onsubmit="return false;">
+            <div class="input-group">
+                <label>📅 日期:</label>
+                <input type="date" id="confirmDate" class="form-input" required>
+            </div>
+            
+            <div class="input-group">
+                <label>💰 金额 (円):</label>
+                <input type="number" id="confirmAmount" class="form-input" min="0" step="1" required>
+            </div>
+            
+            <div class="input-group">
+                <label>🏪 店名:</label>
+                <input type="text" id="confirmStore" class="form-input" maxlength="50" required>
+            </div>
+            
+            <div class="input-group">
+                <label>📊 税率:</label>
+                <select id="confirmTaxRate" class="form-input">
+                    <option value="10%">10% (標準税率)</option>
+                    <option value="8%">8% (軽減税率)</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label>🔢 T番号:</label>
+                <select id="confirmHasTNumber" class="form-input">
+                    <option value="有">有</option>
+                    <option value="無">無</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label>📈 置信度:</label>
+                <div class="confidence-badge" id="confirmConfidence">
+                    85%
+                </div>
+            </div>
+        </form>
+        
+        <div class="button-group">
+            <button type="button" class="btn-secondary" onclick="PageSwitcher.showUploadPage()">
+                ⬅️ 返回
+            </button>
+            <button type="button" class="btn" onclick="ConfirmHandler.submitToSheet()">
+                ✅ 提交到 Sheet
+            </button>
+        </div>
+        
+        <div id="confirmResult"></div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 📦 模块化脚本加载 -->
+    <!-- ========================================== -->
     <script src="config.js"></script>
     <script src="utils.js"></script>
     <script src="image-handler.js"></script>
+    <script src="page-switcher.js"></script>
+    <script src="confirm-handler.js"></script>
     <script src="upload-handler.js"></script>
 </body>
 </html>

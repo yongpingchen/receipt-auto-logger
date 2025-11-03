@@ -5,20 +5,29 @@
 /**
  * 写入数据到 Google Sheet
  * @param {string} date - 日期
+ * @param {number} amount - 金额
+ * @param {string} store - 店名
+ * @param {string} taxRate - 税率
+ * @param {string} hasTNumber - T番号
  * @param {string} ocrText - OCR 原文
  * @param {number} confidence - 置信度
  */
-function writeToSheet(date, ocrText, confidence) {
+function writeToSheet(date, amount, store, taxRate, hasTNumber, ocrText, confidence) {
   debugLog('开始写入 Sheet');
   
   try {
-    const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getActiveSheet();
-    // 确定状态
-    const status = getStatus(confidence);
+    var sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getActiveSheet();
     
-    // 写入数据
+    // 确定状态
+    var status = getStatus(confidence);
+    
+    // 写入数据（新表头：日期 | 金额 | 店名 | 税率 | T番号 | OCR原文 | 状态）
     sheet.appendRow([
       date,
+      amount,
+      store,
+      taxRate,
+      hasTNumber,
       ocrText.substring(0, 500),  // 限制长度
       status
     ]);

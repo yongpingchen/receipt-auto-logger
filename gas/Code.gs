@@ -90,7 +90,7 @@ function doGet(e) {
  */
 function doPost(e) {
   // 记录开始时间
-  const startTime = new Date().getTime();
+  var startTime = new Date().getTime();
   
   // 最外层错误捕获，确保始终返回 JSON
   try {
@@ -103,7 +103,7 @@ function doPost(e) {
     debugLog('请求内容长度: ' + e.postData.contents.length);
     
     // 1. 解析请求
-    let params;
+    var params;
     try {
       params = JSON.parse(e.postData.contents);
     } catch (parseError) {
@@ -119,78 +119,130 @@ function doPost(e) {
       return createResponse({ error: '无效的 token' });
     }
     
-    // 3. 验证图片数据
-    if (!params.image_base64) {
-      throw new Error('缺少图片数据');
-    }
+    // 3. 路由判断：OCR 识别 或 提交数据
+    var action = params.action || 'ocr';  // 默认为 ocr（兼容旧版本）
     
-    // 3. 解码图片
-    debugLog('Base64 字符串长度: ' + params.image_base64.length);
-    debugLog('Base64 前 50 字符: ' + params.image_base64.substring(0, 50));
-    
-    // 检查是否包含 data:image 前缀
-    let base64Data = params.image_base64;
-    if (base64Data.includes(',')) {
-      debugLog('⚠️ 检测到 data URL 前缀，正在移除...');
-      base64Data = base64Data.split(',')[1];
-    }
-    
-    let imageBytes;
-    try {
-      imageBytes = Utilities.base64Decode(base64Data);
-    } catch (decodeError) {
-      throw new Error('Base64 解码失败: ' + decodeError.message);
-    }
-    
-    debugLog('图片大小: ' + imageBytes.length + ' bytes');
-    
-    // 验证图片大小合理性
-    if (imageBytes.length < 100) {
-      throw new Error('图片数据太小（' + imageBytes.length + ' bytes），可能解码失败');
-    }
-    if (imageBytes.length > 10 * 1024 * 1024) {
-      throw new Error('图片太大（' + Math.round(imageBytes.length / 1024 / 1024) + 'MB），请压缩后上传');
-    }
-    
-    // 4. OCR 识别
-    const ocrStartTime = new Date().getTime();
-    debugLog('⏱️ 开始 OCR 识别...');
-    const ocrText = callVisionAPI(imageBytes);
-    const ocrDuration = new Date().getTime() - ocrStartTime;
-    debugLog('⏱️ OCR 完成，耗时: ' + ocrDuration + 'ms');
-    
-    // 5. 解析字段
-    const parsed = parseReceipt(ocrText);
-    
-    // 6. 写入 Sheet
-    const sheetStartTime = new Date().getTime();
-    writeToSheet(parsed.date, ocrText, parsed.confidence);
-    const sheetDuration = new Date().getTime() - sheetStartTime;
-    debugLog('⏱️ Sheet 写入完成，耗时: ' + sheetDuration + 'ms');
-    
-    // 总耗时
-    const totalDuration = new Date().getTime() - startTime;
-    debugLog('⏱️ 总耗时: ' + totalDuration + 'ms');
-    
-    // 7. 返回结果
-    debugLog('========== 处理完成 ==========');
-    return createResponse({
-      success: true,
-      result: {
-        date: parsed.date,
-        amount: parsed.amount,
-        store: parsed.store,
-        taxRate: parsed.taxRate,
-        hasTNumber: parsed.hasTNumber,
-        confidence: parsed.confidence + '%',
-        preview: ocrText.substring(0, 100) + '...'
-      },
-      performance: {
-        ocrTime: ocrDuration + 'ms',
-        sheetTime: sheetDuration + 'ms',
-        totalTime: totalDuration + 'ms'
+    if (action === 'ocr') {
+      // ========== OCR 识别流程 ==========
+      debugLog('执行 OCR 识别');
+      
+      // 验证图片数据
+      if (!params.image_base64) {
+        throw new Error('缺少图片数据');
       }
-    });
+      
+      // 解码图片
+      debugLog('Base64 字符串长度: ' + params.image_base64.length);
+      debugLog('Base64 前 50 字符: ' + params.image_base64.substring(0, 50));
+      
+      // 检查是否包含 data:image 前缀
+      var base64Data = params.image_base64;
+      if (base64Data.includes(',')) {
+        debugLog('⚠️ 检测到 data URL 前缀，正在移除...');
+        base64Data = base64Data.split(',')[1];
+      }
+      
+      var imageBytes;
+      try {
+        imageBytes = Utilities.base64Decode(base64Data);
+      } catch (decodeError) {
+        throw new Error('Base64 解码失败: ' + decodeError.message);
+      }
+      
+      debugLog('图片大小: ' + imageBytes.length + ' bytes');
+      
+      // 验证图片大小合理性
+      if (imageBytes.length < 100) {
+        throw new Error('图片数据太小（' + imageBytes.length + ' bytes），可能解码失败');
+      }
+      if (imageBytes.length > 10 * 1024 * 1024) {
+        throw new Error('图片太大（' + Math.round(imageBytes.length / 1024 / 1024) + 'MB），请压缩后上传');
+      }
+      
+      // 4. OCR 识别
+      var ocrStartTime = new Date().getTime();
+      debugLog('⏱️ 开始 OCR 识别...');
+      var ocrText = callVisionAPI(imageBytes);
+      var ocrDuration = new Date().getTime() - ocrStartTime;
+      debugLog('⏱️ OCR 完成，耗时: ' + ocrDuration + 'ms');
+      
+      // 5. 解析字段
+      var parsed = parseReceipt(ocrText);
+      
+      // 总耗时
+      var totalDuration = new Date().getTime() - startTime;
+      debugLog('⏱️ 总耗时: ' + totalDuration + 'ms');
+      
+      // 6. 返回结果（不写 Sheet）
+      debugLog('========== OCR 识别完成 ==========');
+      return createResponse({
+        success: true,
+        result: {
+          date: parsed.date,
+          amount: parsed.amount,
+          store: parsed.store,
+          taxRate: parsed.taxRate,
+          hasTNumber: parsed.hasTNumber,
+          confidence: parsed.confidence + '%',
+          preview: ocrText.substring(0, 100) + '...'
+        },
+        ocrText: ocrText,  // 保存原文供提交时使用
+        performance: {
+          ocrTime: ocrDuration + 'ms',
+          totalTime: totalDuration + 'ms'
+        }
+      });
+      
+    } else if (action === 'submit') {
+      // ========== 提交数据流程 ==========
+      debugLog('执行数据提交');
+      
+      // 验证数据
+      if (!params.data) {
+        throw new Error('缺少 data 参数');
+      }
+      
+      var data = params.data;
+      
+      // 验证必填字段
+      if (!data.date || !data.ocrText) {
+        throw new Error('缺少必填字段（date, ocrText）');
+      }
+      
+      debugLog('提交数据:', data);
+      
+      // 7. 写入 Sheet
+      var sheetStartTime = new Date().getTime();
+      writeToSheet(
+        data.date,
+        data.amount || 0,
+        data.store || '不明',
+        data.taxRate || '10%',
+        data.hasTNumber || '無',
+        data.ocrText,
+        data.confidence || 0
+      );
+      var sheetDuration = new Date().getTime() - sheetStartTime;
+      debugLog('⏱️ Sheet 写入完成，耗时: ' + sheetDuration + 'ms');
+      
+      // 总耗时
+      var totalDuration = new Date().getTime() - startTime;
+      debugLog('⏱️ 总耗时: ' + totalDuration + 'ms');
+      
+      // 8. 返回成功
+      debugLog('========== 数据提交完成 ==========');
+      return createResponse({
+        success: true,
+        message: '数据已写入 Sheet',
+        performance: {
+          sheetTime: sheetDuration + 'ms',
+          totalTime: totalDuration + 'ms'
+        }
+      });
+      
+    } else {
+      throw new Error('无效的 action 参数: ' + action);
+    }
     
   } catch (error) {
     // 确保错误也以 JSON 格式返回
@@ -207,7 +259,6 @@ function doPost(e) {
     });
   }
 }
-
 /**
  * 创建 HTTP 响应
  */
@@ -274,5 +325,59 @@ function testBase64Decode() {
     
   } catch (error) {
     Logger.log('❌ 测试失败: ' + error.toString());
+  }
+}
+
+/**
+ * 测试新的 action 路由
+ */
+function testActionRouting() {
+  Logger.log('🧪 测试 action 路由...');
+  
+  // 测试 OCR action（模拟请求）
+  var mockOcrRequest = {
+    postData: {
+      contents: JSON.stringify({
+        action: 'ocr',
+        token: CONFIG.SECRET_TOKEN,
+        image_base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
+      })
+    }
+  };
+  
+  try {
+    var ocrResult = doPost(mockOcrRequest);
+    Logger.log('OCR 测试结果:');
+    Logger.log(ocrResult.getContent());
+  } catch (error) {
+    Logger.log('❌ OCR 测试失败: ' + error.toString());
+  }
+  
+  // 测试 Submit action
+  var mockSubmitRequest = {
+    postData: {
+      contents: JSON.stringify({
+        action: 'submit',
+        token: CONFIG.SECRET_TOKEN,
+        data: {
+          date: '2025-11-02',
+          amount: 1250,
+          store: 'テスト店',
+          taxRate: '10%',
+          hasTNumber: '有',
+          ocrText: 'テストOCR原文',
+          confidence: 85
+        }
+      })
+    }
+  };
+  
+  try {
+    var submitResult = doPost(mockSubmitRequest);
+    Logger.log('Submit 测试结果:');
+    Logger.log(submitResult.getContent());
+    Logger.log('✅ 请检查 Sheet 是否有新数据');
+  } catch (error) {
+    Logger.log('❌ Submit 测试失败: ' + error.toString());
   }
 }
