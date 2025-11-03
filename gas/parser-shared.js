@@ -275,13 +275,30 @@ function extractTaxRate(text) {
 }
 
 /**
- * 提取 T 番号
+ * 提取 T 番号（完整番号）
+ * @param {string} text - OCR 文本
+ * @return {string} T番号（格式：T1234567890123）或空字符串
  */
 function extractTNumber(text) {
+    // 匹配标准格式：T + 13位数字
     var match = text.match(/T\d{13}/);
-    return match ? '有' : '無';
+    
+    if (match) {
+        debugLog('找到 T番号: ' + match[0]);
+        return match[0];
+    }
+    
+    // 尝试匹配带分隔符的格式（T-1234-5678-90123）
+    var matchWithDash = text.match(/T-?\d{4}-?\d{4}-?\d{5}/);
+    if (matchWithDash) {
+        var cleaned = matchWithDash[0].replace(/-/g, '');
+        debugLog('找到带分隔符的 T番号，清理后: ' + cleaned);
+        return cleaned;
+    }
+    
+    debugLog('未找到 T番号');
+    return '';  // 未找到时返回空字符串
 }
-
 /**
  * 计算置信度
  */

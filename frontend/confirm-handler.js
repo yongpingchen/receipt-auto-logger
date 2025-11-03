@@ -126,10 +126,13 @@ var ConfirmHandler = (function() {
             return false;
         }
         
-        // 验证 T 番号
-        if (formData.hasTNumber !== '有' && formData.hasTNumber !== '無') {
-            alert('T 番号只能是"有"或"無"');
-            return false;
+        // 验证 T 番号（可选字段）
+        if (formData.hasTNumber && formData.hasTNumber.trim() !== '') {
+            var tNumberPattern = /^T\d{13}$/;
+            if (!tNumberPattern.test(formData.hasTNumber.trim())) {
+                alert('T 番号格式错误\n正确格式：T + 13位数字（例如 T1234567890123）');
+                return false;
+            }
         }
         
         return true;
