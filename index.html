@@ -72,10 +72,14 @@
             
             <div class="input-group">
                 <label>🔢 T番号:</label>
-                <select id="confirmHasTNumber" class="form-input">
-                    <option value="有">有</option>
-                    <option value="無">無</option>
-                </select>
+                <input type="text" 
+                       id="confirmHasTNumber" 
+                       class="form-input" 
+                       placeholder="T1234567890123 (留空表示无)"
+                       pattern="T\d{13}|^$"
+                       maxlength="14"
+                       title="格式：T + 13位数字，例如 T1234567890123">
+                <p class="hint">📌 格式：T + 13位数字（例如 T1234567890123），无番号则留空</p>
             </div>
             
             <div class="input-group">

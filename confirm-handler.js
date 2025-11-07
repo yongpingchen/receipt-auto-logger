@@ -11,6 +11,8 @@ var ConfirmHandler = (function() {
     // 私有变量：保存原始数据
     var currentOcrText = '';      // 原始 OCR 文本
     var currentConfidence = 0;    // 置信度
+    var currentFileId = '';        // 🔥 新增：保存 fileId
+
     
     /**
      * 渲染识别结果到表单
@@ -21,6 +23,8 @@ var ConfirmHandler = (function() {
         // 保存原始数据
         currentOcrText = ocrText || '';
         currentConfidence = parseInt(data.confidence, 10) || 0;
+        currentFileId = data.fileId || '';  // 🔥 保存 fileId
+
         
         // 填充表单字段
         var dateInput = document.getElementById('confirmDate');
@@ -83,6 +87,8 @@ var ConfirmHandler = (function() {
             confirmResult.style.display = 'none';
             confirmResult.innerHTML = '';
         }
+        debugLog('Saved fileId: ' + currentFileId);
+
     }
     
     /**
@@ -126,10 +132,13 @@ var ConfirmHandler = (function() {
             return false;
         }
         
-        // 验证 T 番号
-        if (formData.hasTNumber !== '有' && formData.hasTNumber !== '無') {
-            alert('T 番号只能是"有"或"無"');
-            return false;
+        // 验证 T 番号（可选字段）
+        if (formData.hasTNumber && formData.hasTNumber.trim() !== '') {
+            var tNumberPattern = /^T\d{13}$/;
+            if (!tNumberPattern.test(formData.hasTNumber.trim())) {
+                alert('T 番号格式错误\n正确格式：T + 13位数字（例如 T1234567890123）');
+                return false;
+            }
         }
         
         return true;
@@ -153,7 +162,8 @@ var ConfirmHandler = (function() {
             taxRate: taxRateSelect.value,
             hasTNumber: hasTNumberSelect.value,
             ocrText: currentOcrText,
-            confidence: currentConfidence
+            confidence: currentConfidence,
+            fileId: currentFileId  // 🔥 新增：传递 fileId
         };
         
         // 验证表单
@@ -289,6 +299,8 @@ var ConfirmHandler = (function() {
     function resetForm() {
         currentOcrText = '';
         currentConfidence = 0;
+        currentFileId = '';  // 🔥 重置 fileId
+
         
         var form = document.getElementById('confirmForm');
         if (form) {
