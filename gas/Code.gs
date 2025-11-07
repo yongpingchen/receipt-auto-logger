@@ -89,20 +89,15 @@ function doGet(e) {
  * Web App 入口：接收 POST 请求
  */
 function doPost(e) {
-  // 记录开始时间
   var startTime = new Date().getTime();
   
-  // 最外层错误捕获，确保始终返回 JSON
   try {
-    // 检查请求数据
     if (!e || !e.postData || !e.postData.contents) {
       throw new Error('无效的请求数据');
     }
     
     debugLog('========== 收到新请求 ==========');
-    debugLog('请求内容长度: ' + e.postData.contents.length);
     
-    // 1. 解析请求
     var params;
     try {
       params = JSON.parse(e.postData.contents);
@@ -110,70 +105,39 @@ function doPost(e) {
       throw new Error('JSON 解析失败: ' + parseError.message);
     }
     
-    // 2. 验证 token
-    if (!params.token) {
-      throw new Error('缺少 token 参数');
-    }
-    if (params.token !== CONFIG.SECRET_TOKEN) {
-      debugLog('❌ Token 验证失败');
+    // Token 验证
+    if (!params.token || params.token !== CONFIG.SECRET_TOKEN) {
       return createResponse({ error: '无效的 token' });
     }
     
-    // 3. 路由判断：OCR 识别 或 提交数据
-    var action = params.action || 'ocr';  // 默认为 ocr（兼容旧版本）
+    var action = params.action || 'ocr';
     
     if (action === 'ocr') {
       // ========== OCR 识别流程 ==========
       debugLog('执行 OCR 识别');
       
-      // 验证图片数据
       if (!params.image_base64) {
         throw new Error('缺少图片数据');
       }
       
-      // 解码图片
-      debugLog('Base64 字符串长度: ' + params.image_base64.length);
-      debugLog('Base64 前 50 字符: ' + params.image_base64.substring(0, 50));
-      
-      // 检查是否包含 data:image 前缀
       var base64Data = params.image_base64;
       if (base64Data.includes(',')) {
-        debugLog('⚠️ 检测到 data URL 前缀，正在移除...');
         base64Data = base64Data.split(',')[1];
       }
       
-      var imageBytes;
-      try {
-        imageBytes = Utilities.base64Decode(base64Data);
-      } catch (decodeError) {
-        throw new Error('Base64 解码失败: ' + decodeError.message);
-      }
+      var imageBytes = Utilities.base64Decode(base64Data);
       
-      debugLog('图片大小: ' + imageBytes.length + ' bytes');
-      
-      // 验证图片大小合理性
-      if (imageBytes.length < 100) {
-        throw new Error('图片数据太小（' + imageBytes.length + ' bytes），可能解码失败');
-      }
-      if (imageBytes.length > 10 * 1024 * 1024) {
-        throw new Error('图片太大（' + Math.round(imageBytes.length / 1024 / 1024) + 'MB），请压缩后上传');
-      }
-      
-      // 4. OCR 识别
+      // 🔥 调用 Vision API（返回包含 fileId）
       var ocrStartTime = new Date().getTime();
-      debugLog('⏱️ 开始 OCR 识别...');
-      var ocrText = callVisionAPI(imageBytes);
+      var visionResult = callVisionAPI(imageBytes);
       var ocrDuration = new Date().getTime() - ocrStartTime;
-      debugLog('⏱️ OCR 完成，耗时: ' + ocrDuration + 'ms');
       
-      // 5. 解析字段
-      var parsed = parseReceipt(ocrText);
+      // 解析字段
+      var parsed = parseReceipt(visionResult.text);
       
-      // 总耗时
       var totalDuration = new Date().getTime() - startTime;
-      debugLog('⏱️ 总耗时: ' + totalDuration + 'ms');
       
-      // 6. 返回结果（不写 Sheet）
+      // 🔥 返回结果（包含 fileId）
       debugLog('========== OCR 识别完成 ==========');
       return createResponse({
         success: true,
@@ -184,9 +148,11 @@ function doPost(e) {
           taxRate: parsed.taxRate,
           hasTNumber: parsed.hasTNumber,
           confidence: parsed.confidence + '%',
-          preview: ocrText.substring(0, 100) + '...'
+          fileId: visionResult.fileId,        // 🔥 新增
+          fileUrl: visionResult.fileUrl,      // 🔥 新增
+          preview: visionResult.text.substring(0, 100) + '...'
         },
-        ocrText: ocrText,  // 保存原文供提交时使用
+        ocrText: visionResult.text,
         performance: {
           ocrTime: ocrDuration + 'ms',
           totalTime: totalDuration + 'ms'
@@ -197,7 +163,6 @@ function doPost(e) {
       // ========== 提交数据流程 ==========
       debugLog('执行数据提交');
       
-      // 验证数据
       if (!params.data) {
         throw new Error('缺少 data 参数');
       }
@@ -211,7 +176,21 @@ function doPost(e) {
       
       debugLog('提交数据:', data);
       
-      // 7. 写入 Sheet
+      // 🔥 重命名文件（如果有 fileId）
+      if (data.fileId) {
+        try {
+          renameReceiptFile(
+            data.fileId,
+            data.date,
+            data.store || '不明',
+            data.amount || 0
+          );
+        } catch (renameError) {
+          debugLog('⚠️ 文件重命名失败，但继续提交: ' + renameError.toString());
+        }
+      }
+      
+      // 写入 Sheet
       var sheetStartTime = new Date().getTime();
       writeToSheet(
         data.date,
@@ -223,13 +202,9 @@ function doPost(e) {
         data.confidence || 0
       );
       var sheetDuration = new Date().getTime() - sheetStartTime;
-      debugLog('⏱️ Sheet 写入完成，耗时: ' + sheetDuration + 'ms');
       
-      // 总耗时
       var totalDuration = new Date().getTime() - startTime;
-      debugLog('⏱️ 总耗时: ' + totalDuration + 'ms');
       
-      // 8. 返回成功
       debugLog('========== 数据提交完成 ==========');
       return createResponse({
         success: true,
@@ -245,17 +220,10 @@ function doPost(e) {
     }
     
   } catch (error) {
-    // 确保错误也以 JSON 格式返回
     debugLog('❌ 处理失败: ' + error.toString());
-    if (error.stack) {
-      debugLog('错误堆栈: ' + error.stack);
-    }
-    
     return createResponse({ 
       success: false,
-      error: error.toString(),
-      errorType: error.name || 'Error',
-      details: CONFIG.DEBUG_MODE ? error.stack : undefined
+      error: error.toString()
     });
   }
 }

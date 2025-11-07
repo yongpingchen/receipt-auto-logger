@@ -7,6 +7,9 @@ var CONFIG = {
   VISION_API_KEY: PropertiesService.getScriptProperties().getProperty('VISION_API_KEY'),
   SHEET_ID: PropertiesService.getScriptProperties().getProperty('SHEET_ID'),
   SECRET_TOKEN: PropertiesService.getScriptProperties().getProperty('SECRET_TOKEN') || 'test123',
+  // 🗂️ Google Drive 配置（新增）
+  DRIVE_FOLDER_ID: PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID'),
+ 
   
   // 🎯 置信度阈值
   CONFIDENCE_THRESHOLD: {
